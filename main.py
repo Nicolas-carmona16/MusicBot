@@ -6,6 +6,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+intents = discord.Intents.default()
+intents.members = True
+intents.presences = True
 client = commands.Bot(command_prefix="!", intents=discord.Intents.all())
 queues = {}
 playback_history = {}
@@ -16,6 +19,11 @@ def check_queue(ctx, guild_id):
         source = queues[guild_id].pop(0)
         voice_client.play(source, after=lambda x=None: check_queue(ctx, guild_id))
 
+@client.event
+async def on_guild_join(guild):
+    general_channel = guild.system_channel
+    if general_channel:
+        await general_channel.send("¡Hola! ¡Gracias por añadirme a tu servidor! 🚀🌚 \nPara reproducir música, únete a un canal de voz y escribe !join.")
 @client.event
 async def on_ready():
     await client.tree.sync()
@@ -51,6 +59,22 @@ class YTDLSource(discord.PCMVolumeTransformer):
             return cls(discord.FFmpegPCMAudio(filename, **{'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}), data=data)
 
 @client.command()
+async def join(ctx):
+    """Une al bot al canal de voz del usuario."""
+    if ctx.author.voice:
+        channel = ctx.author.voice.channel
+        voice_client = await channel.connect()
+        await ctx.send(f'_Hola! estoy en el voice: {channel.name}_ ✨🎶\nPara ver la lista de comandos, escribe _!h_\nPara reproducir tu música utiliza ! seguido del comando')
+    else:
+        await ctx.send("No estás conectado a un canal de voz.")
+
+    channel = ctx.message.author.voice.channel
+    if ctx.voice_client is not None:
+        return await ctx.voice_client.move_to(channel)
+
+    await channel.connect()
+
+@client.command()
 async def play(ctx, *, search: str):
     """Reproduce una canción basada en el término de búsqueda dado o la añade a la cola si ya hay música reproduciéndose."""
     async with ctx.typing():
@@ -82,21 +106,9 @@ async def next(ctx):
         await ctx.send("No hay música reproduciéndose actualmente.")
 
 @client.command()
-async def join(ctx):
-    """Une al bot al canal de voz del usuario."""
-    if not ctx.message.author.voice:
-        await ctx.send("No estás conectado a un canal de voz.")
-        return
-
-    channel = ctx.message.author.voice.channel
-    if ctx.voice_client is not None:
-        return await ctx.voice_client.move_to(channel)
-
-    await channel.connect()
-
-@client.command()
 async def stop(ctx):
     """Detiene la reproducción de música y desconecta al bot del canal de voz."""
+    await ctx.send("Mal ahí 😒")
     await ctx.voice_client.disconnect()
 
 @client.command()
@@ -145,5 +157,31 @@ async def history(ctx):
     else:
         await ctx.send("El historial está vacío.")
 
+
+@client.command()
+async def np(ctx):
+  """Muestra lo que se está reprodución actualmente."""
+  voice_client = ctx.voice_client
+
+  if not voice_client or not voice_client.is_playing():
+    await ctx.send("Nada ome cansón")
+    return
+
+  player = voice_client.source
+  song = player.title
+
+  embed = discord.Embed(title="Reproduciendo:", description=song)
+  await ctx.send(embed=embed)
+
+@client.command()
+async def h(ctx):
+    """Muestra los comandos disponibles"""
+    command_list = [f"{command.name}: {command.help}" for command in client.commands if not command.hidden]
+    if command_list:
+        await ctx.send("Comandos disponibles 🪇:")
+        for command_info in command_list:
+            await ctx.send(f"```{command_info}```")
+    else:
+        await ctx.send("No hay comandos disponibles.")
 
 client.run(os.getenv('DISCORD_TOKEN'))
