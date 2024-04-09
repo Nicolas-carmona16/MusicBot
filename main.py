@@ -99,11 +99,11 @@ async def play(ctx, *, search: str):
 @client.command()
 async def next(ctx):
     """Pasa a la siguiente canción en la cola."""
-    if ctx.voice_client.is_playing():
+    if ctx.voice_client.is_playing() or ctx.voice_client.is_paused():
         ctx.voice_client.stop()
         await ctx.send("Pasando a la siguiente canción...")
     else:
-        await ctx.send("No hay música reproduciéndose actualmente.")
+        await ctx.send("No hay música para reproducir actualmente.")
 
 @client.command()
 async def stop(ctx):
